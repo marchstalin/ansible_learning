@@ -1,0 +1,95 @@
+---
+- hosts: target1
+  become: yes
+  vars_files:
+    - vars/default.yaml
+  tasks:
+    - name: install httpd
+      #      shell: "sudo apt install apache2"
+      apt: name=apache2 state=latest
+      notify: 
+        - start apache2
+
+    - name: install php libraries
+      apt: name={{ item }} state=latest
+      with_items:
+        - php
+        - php-cli
+        - php-fpm
+        - php-zip
+        - php-dev
+        - libapache2-mod-php
+        - libapache2-mod-fcgid
+        - php-mysql
+        - php-json
+        - php-curl
+    - name: enable 
+      shell: a2enmod actions fcgid alias proxy_fcgi
+        #      notify:
+        #        - restart apache2
+    - name: set VHost conf file
+      ansible.builtin.copy:
+        src: /home/stalin/demo/stalin.conf
+        dest: /etc/apache2/sites-enabled/stalin.conf 
+        #    - name: enable stalin.conf file
+        #      shell: a2ensite stalin.conf
+
+    - name: disable apache default page
+      shell: /usr/sbin/a2dissite 000-default.conf
+      notify: Reload Apache
+
+
+    - name: install mysql
+      apt: name={{ item }} state=latest
+      with_items:
+        - mysql-server
+        - mysql-common
+        - python3-mysqldb
+        - python3-pycurl
+          #        - php-mysql
+        - python3-pip
+          #        - python-pymysql
+      notify:
+        - start mysql
+
+    - name: Set MySQL root Password
+      no_log: true
+      community.mysql.mysql_user:
+        name: root
+        password: "{{ mysql_root_password }}"
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Copy .my.cnf for easier mysql automation
+      blockinfile:
+        path: ~/.my.cnf
+        create: yes
+        block: |
+          [client]
+          user=root
+          password: "{{ mysql_root_password }}"
+
+    - name: Removes test database
+      no_log: true
+      community.mysql.mysql_db:
+        name: test
+        state: absent
+
+    - name: Prohibit Remote Root login
+      no_log: true
+      community.mysql.mysql_query:
+        login_db: mysql
+        query: "{{ item }}"
+      with_items:
+      - DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+      - FLUSH PRIVILEGES;
+
+
+  handlers:
+    - name: start apache2
+      service: name=apache2 state=started
+    - name: Reload Apache
+      service: name=apache2 state=reloaded
+    - name: start mysql
+      service: name=mysql state=started
+        #    - name: restart apache2
+        #      service: name=apache2 state=restarted

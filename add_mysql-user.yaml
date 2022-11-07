@@ -1,0 +1,15 @@
+---
+- hosts: ubuntu-client
+  vars_files:
+    - vars/default.yaml
+  tasks:
+    - name: add mysql user
+      mysql_user:
+        name: india
+        password: 'india123'
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+        host: localhost
+        state: present
+        priv: 'insia.*:ALL,GRANT' #insia is a db which should be crated before running this ansible file
+

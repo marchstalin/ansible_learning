@@ -1,0 +1,14 @@
+---
+- hosts: target1
+  become: yes
+  tasks:
+    - name: update debian based os 
+      apt: 
+        update_cache: true
+        state: latest
+      when: (ansible_distribution == "Debian") #ansible_os_family == "Debian"
+    - name: update centos 
+      yum:
+        name: '*'
+        state: latest
+      when: ansible_os_family == "CentOS"
